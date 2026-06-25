@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Survev 스타일 탑다운 슈터 (완전판)</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            background-color: #222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            user-select: none; -webkit-user-select: none; touch-action: none;
+        }
+
+        #gameCanvas { display: block; }
+
+        #mainMenu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 30;
+            overflow-y: auto; padding: 20px; box-sizing: border-box;
+        }
+
+        #mainMenu h1 { color: #79A048; font-size: clamp(40px, 8vw, 80px); margin: 0 0 10px 0; text-shadow: 4px 4px 0 #000; text-align: center; line-height: 1.1; word-break: keep-all; }
+        #mainMenu .subtitle { color: #FFD700; font-size: clamp(16px, 2vw, 22px); margin-bottom: 30px; font-weight: bold; text-align: center; word-break: keep-all; line-height: 1.3; }
+
+        .quick-start-btn {
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; 
+            margin-bottom: 40px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,0.05);
+            transition: transform 0.2s, background 0.2s; border: 2px solid transparent;
+        }
+        .quick-start-btn:hover { transform: scale(1.05); background: rgba(255,255,255,0.1); border-color: #FFD700; }
+        .quick-start-btn:active { transform: scale(0.95); }
+
+        .menu-row { margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center; }
+        .menu-row label { color: white; font-size: 20px; font-weight: bold; }
+        select, input[type="text"] {
+            padding: 10px 15px; font-size: 18px; background-color: #444; color: #fff;
+            border: 3px solid #79A048; border-radius: 8px; outline: none;
+        }
+        input[type="text"] { width: 120px; text-align: center; text-transform: uppercase; }
+
+        .btn-group { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+
+        #authMessage { color: #42A5F5; font-size: 18px; margin-top: 20px; font-weight: bold; }
+        #multiplayerControls { display: none; text-align: center; width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; }
+
+        #uiLayer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; flex-direction: column;
+            justify-content: space-between; padding: 15px; box-sizing: border-box; z-index: 10;
+        }
+
+        #topUI { display: flex; justify-content: space-between; width: 100%; }
+
+        #scoreBoard, #weaponBoard {
+            font-size: clamp(16px, 2vw, 24px); color: white; font-weight: bold;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        
+        #roomCodeDisplay {
+            color: #42A5F5; font-size: 18px; margin-top: 10px; background: rgba(0,0,0,0.5);
+            padding: 5px 10px; border-radius: 5px; border: 1px solid #42A5F5; display: inline-block;
+        }
+
+        #weaponBoard {
+            text-align: right; min-width: 200px; background: rgba(0,0,0,0.5);
+            padding: 15px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);
+            pointer-events: auto; cursor: pointer; transition: background 0.2s;
+        }
+        #weaponBoard:active { background: rgba(255,255,255,0.2); }
+
+        .xp-bar-container { width: 100%; height: 8px; background: #444; border-radius: 4px; margin-top: 8px; overflow: hidden; border: 1px solid #000; }
+        .xp-bar { width: 0%; height: 100%; background: #42A5F5; transition: width 0.1s ease; }
+
+        #messageBoard {
+            position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 90%;
+            color: #FFEB3B; font-size: clamp(24px, 4vw, 36px); font-weight: bold; text-shadow: 3px 3px 0 #000;
+            pointer-events: none; opacity: 0; transition: opacity 0.2s; text-align: center;
+        }
+
+        #roundAnnouncer {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            color: #FFF; font-size: clamp(30px, 6vw, 60px); font-weight: bold; text-shadow: 4px 4px 0 #000;
+            text-align: center; display: none; pointer-events: none; z-index: 50; width: 100%;
+        }
+        #roundAnnouncerTitle { color: #FF7043; margin-bottom: 10px; }
+        #roundAnnouncerSub { font-size: clamp(20px, 4vw, 30px); color: #FFD700; }
+
+        #gameOverScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); display: none; flex-direction: column;
+            align-items: center; justify-content: center; pointer-events: auto; z-index: 20;
+        }
+
+        #pauseScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); display: none; flex-direction: column;
+            align-items: center; justify-content: center; pointer-events: auto; z-index: 25;
+        }
+
+        h2 { color: #FF4D4D; font-size: clamp(40px, 8vw, 64px); margin: 0 0 10px 0; text-shadow: 3px 3px 0 #000; }
+        p { color: white; font-size: clamp(18px, 3vw, 24px); margin: 0 0 30px 0; text-align: center; line-height: 1.5; }
+
+        button {
+            padding: 12px 24px; font-size: clamp(16px, 2vw, 20px); background-color: #FAD591; color: #322E2C;
+            border: 4px solid #322E2C; border-radius: 8px; cursor: pointer; font-weight: bold; transition: transform 0.1s;
+        }
+        button:hover { transform: scale(1.05); background-color: #fff; }
+        button:active { transform: scale(0.95); }
+
+        #controls {
+            position: absolute; bottom: 20px; left: 20px; color: rgba(255, 255, 255, 0.9);
+            font-size: 13px; text-shadow: 1px 1px 0 #000; background: rgba(0,0,0,0.6);
+            padding: 10px 15px; border-radius: 8px; pointer-events: none; line-height: 1.4;
+            max-width: 60%;
+        }
+        #inventoryDisplay { font-size: 12px; color: #ccc; margin-top: 8px; text-align: right; line-height: 1.4; }
+        
+        .mobile-hint { display: none; color: #FFD700; font-size: 14px; margin-top: 5px; }
+        @media (max-width: 768px) {
+            #controls { display: none; }
+            .mobile-hint { display: block; }
+        }
+    </style>
+</head>
+<body>
+    <div id="mainMenu">
+        <h1>SURVEV + BOXHEAD</h1>
+        <div class="subtitle">리얼타임 생성 미로 맵 & 고해상도 길찾기 AI</div>
+        
+        <div class="quick-start-btn" onclick="window.startSinglePlayer('Maze (미로)')">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="#FFD700" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5V19L19 12L8 5Z" stroke="#322E2C" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <span style="color: #FFD700; font-size: 28px; font-weight: bold; margin-top: 10px; text-shadow: 2px 2px 0 #000;">미로 바로 시작</span>
+        </div>
+
+        <div id="authMessage">온라인 서버에 연결 중...</div>
+        
+        <div id="multiplayerControls">
+            <div class="menu-row">
+                <label for="mapSelect">맵 선택:</label>
+                <select id="mapSelect" onchange="window.updateMapPreview()"></select>
+            </div>
+            
+            <div id="mapPreviewContainer" style="margin-bottom: 20px; display: flex; flex-direction: column; align-items: center;">
+                <div style="color: #FFD700; font-size: 14px; margin-bottom: 5px; font-weight: bold;">미니맵 구조 (미리보기)</div>
+                <canvas id="previewCanvas" width="250" height="250" style="background: #222; border: 3px solid #79A048; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);"></canvas>
+            </div>
+
+            <div class="btn-group">
+                <button onclick="window.startSinglePlayer()" style="background-color: #a5d6a7;">선택 맵 싱글</button>
+                <button onclick="window.createRoom()" style="background-color: #90caf9;">멀티 방 만들기</button>
+            </div>
+
+            <div class="menu-row" style="border-top: 2px solid #555; padding-top: 20px; margin-top: 20px;">
+                <input type="text" id="roomInput" placeholder="방 코드 (5자리)" maxlength="5">
+                <button onclick="window.joinRoom()" style="background-color: #ce93d8;">방 참가</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiLayer">
+        <div id="topUI">
+            <div id="scoreBoard">
+                <div id="scoreText">점수: 0</div>
+                <div id="roomCodeDisplay" style="display:none;">방 코드: </div>
+                <div id="roundText" style="color: #FF7043; font-size: 24px; margin-top: 5px; font-weight: bold;">라운드: 1</div>
+                <div id="roundProgress" style="font-size: 16px; color: #aaa; margin-top: 2px;">처치 진행도: 0 / 10</div>
+            </div>
+            
+            <div id="weaponBoard" onclick="window.cycleWeapon(1)">
+                <div id="currentWeaponText">무기: Pistol [Lv.1]</div>
+                <div id="weaponAmmoText" style="font-size: 20px; color: #FFF; margin-top: 2px;">탄약: ∞</div>
+                <div id="xpLabel" style="font-size: 12px; color: #42A5F5; margin-top: 5px; font-weight: normal;">내공: 0 / 10</div>
+                <div class="xp-bar-container"><div id="weaponXpBar" class="xp-bar"></div></div>
+                <div id="inventoryDisplay">보유 중: Pistol</div>
+                <div class="mobile-hint">(터치하여 무기 변경)</div>
+            </div>
+        </div>
+        <div id="messageBoard">메시지</div>
+        
+        <div id="roundAnnouncer">
+            <div id="roundAnnouncerTitle">라운드 클리어!</div>
+            <div id="roundAnnouncerSub">다음 라운드까지 5초</div>
+        </div>
+        
+        <div id="controls">
+            이동: W, A, S, D | 사격: 왼쪽 클릭 | 일시정지: ESC | 무기 교체: 숫자키 1~7번 또는 <b>마우스 휠</b><br>
+            <span style="color: #FFD700;">파밍:</span> 좀비 처치 시 확률적으로 무기 드롭 (자동 습득)<br>
+            <span style="color: #42A5F5;">성장:</span> 권총은 무한 성장(관통/다중발사), 타 무기는 Lv.5 한계
+        </div>
+    </div>
+
+    <div id="gameOverScreen">
+        <h2>게임 오버</h2>
+        <p id="finalStats">최종 점수: 0</p>
+        <button onclick="window.resetGame()">다시 도전</button>
+        <button onclick="window.goToMainMenu()" style="margin-top: 15px; background-color: #aaa;">메인 메뉴로</button>
+    </div>
+
+    <!-- 일시정지 메뉴 UI 추가 -->
+    <div id="pauseScreen">
+        <h2 style="color: #FFF;">일시정지됨</h2>
+        <button onclick="window.resumeGame()">계속하기 (ESC)</button>
+        <button onclick="window.goToMainMenu()" style="margin-top: 15px; background-color: #aaa;">메인 메뉴로 나가기</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let currentUser = null;
+        let activeRoomId = null;
+        let isMultiplayer = false;
+        let unsubscribePlayers = null;
+        let networkSyncInterval = null;
+        let remotePlayers = {}; 
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                document.getElementById('authMessage').innerText = "서버 연결 실패 (싱글 플레이만 가능합니다)";
+                document.getElementById('multiplayerControls').style.display = 'block'; 
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('multiplayerControls').style.display = 'block';
+                document.getElementById('authMessage').style.display = 'none';
+            }
+        });
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameActive = false, isGameOver = false, score = 0, animationId, lastTime = 0, enemyIdCounter = 0;
+        let isPaused = false; // 일시정지 상태 변수
+
+        let currentRound = 1;
+        let enemiesTotalInRound = 10;
+        let enemiesSpawnedInRound = 0;
+        let enemiesKilledInRound = 0;
+        let isRoundTransition = false;
+        let roundCountdownInterval = null;
+
+        const baseGameMaps = {
+            "Maze (미로)": { w: 3150, h: 3150, obstacles: [] }, 
+            "Forest box": { w: 2200, h: 2200, obstacles: [] },
+            "Big boxy": { w: 1800, h: 1800, obstacles: [{x: 400, y: 400, w: 150, h: 150, type: 'wall'}, {x: 1250, y: 400, w: 150, h: 150, type: 'wall'}, {x: 400, y: 1250, w: 150, h: 150, type: 'wall'}, {x: 1250, y: 1250, w: 150, h: 150, type: 'wall'}] },
+            "Recty": { w: 2600, h: 1100, obstacles: [{x: 400, y: 350, w: 600, h: 80, type: 'wall'}, {x: 1600, y: 670, w: 600, h: 80, type: 'wall'}, {x: 1250, y: 150, w: 100, h: 300, type: 'tree'}, {x: 1250, y: 650, w: 100, h: 300, type: 'tree'}] },
+            "Patchy": { w: 2000, h: 2000, obstacles: [{x: 200, y: 200, w: 250, h: 250, type: 'wall'}, {x: 1550, y: 200, w: 250, h: 250, type: 'wall'}, {x: 200, y: 1550, w: 250, h: 250, type: 'wall'}, {x: 1550, y: 1550, w: 250, h: 250, type: 'wall'}] },
+            "Tight 2": { w: 1200, h: 1200, obstacles: [{x: 0, y: 350, w: 450, h: 100, type: 'wall'}, {x: 750, y: 350, w: 450, h: 100, type: 'wall'}, {x: 0, y: 750, w: 450, h: 100, type: 'wall'}, {x: 750, y: 750, w: 450, h: 100, type: 'wall'}] },
+            "Massive": { w: 3600, h: 3600, obstacles: [{x: 800, y: 800, w: 400, h: 400, type: 'wall'}, {x: 2400, y: 800, w: 400, h: 400, type: 'wall'}, {x: 800, y: 2400, w: 400, h: 400, type: 'wall'}, {x: 2400, y: 2400, w: 400, h: 400, type: 'wall'}] },
+            "Thin line": { w: 3500, h: 700, obstacles: [{x: 500, y: 0, w: 100, h: 450, type: 'wall'}, {x: 1700, y: 0, w: 100, h: 450, type: 'wall'}, {x: 2900, y: 0, w: 100, h: 450, type: 'wall'}] },
+            "4 castles": { w: 2400, h: 2400, obstacles: [{x: 200, y: 200, w: 400, h: 80, type: 'wall'}, {x: 1800, y: 200, w: 400, h: 80, type: 'wall'}, {x: 200, y: 2120, w: 400, h: 80, type: 'wall'}, {x: 1800, y: 2120, w: 400, h: 80, type: 'wall'}] },
+            "The strips": { w: 2200, h: 2200, obstacles: [{x: 400, y: 0, w: 120, h: 1700, type: 'wall'}, {x: 1100, y: 500, w: 120, h: 1700, type: 'wall'}] },
+            "Big one": { w: 3000, h: 3000, obstacles: [{x: 1000, y: 1000, w: 1000, h: 60, type: 'wall'}, {x: 1000, y: 1940, w: 1000, h: 60, type: 'wall'}] },
+            "Random City": { w: 2800, h: 2800, obstacles: [] }
+        };
+
+        const select = document.getElementById('mapSelect');
+        for (let mapName in baseGameMaps) {
+            let opt = document.createElement('option'); opt.value = mapName; opt.innerText = mapName; select.appendChild(opt);
+        }
+
+        window.updateMapPreview = () => {
+            const mapName = document.getElementById('mapSelect').value;
+            const previewCanvas = document.getElementById('previewCanvas');
+            if (!previewCanvas) return;
+            const pctx = previewCanvas.getContext('2d');
+            
+            let tempMapData = JSON.parse(JSON.stringify(baseGameMaps[mapName]));
+            let tempSeed = 12345; 
+            function tRandom() { let x = Math.sin(tempSeed++) * 10000; return x - Math.floor(x); }
+            
+            if (mapName === "Maze (미로)") {
+                let cols = 21, rows = 21, cellSize = 150;
+                let maze = Array.from({length: cols}, () => Array(rows).fill(1));
+                let stack = [{x: 11, y: 11}]; maze[11][11] = 0;
+                while(stack.length > 0) {
+                    let curr = stack[stack.length - 1];
+                    let neighbors = [];
+                    let dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+                    for(let d of dirs) {
+                        let nx = curr.x + d[0], ny = curr.y + d[1];
+                        if(nx > 0 && nx < cols-1 && ny > 0 && ny < rows-1 && maze[nx][ny] === 1) {
+                            neighbors.push({x: nx, y: ny, dx: d[0]/2, dy: d[1]/2});
+                        }
+                    }
+                    if(neighbors.length > 0) {
+                        let next = neighbors[Math.floor(tRandom() * neighbors.length)];
+                        maze[curr.x + next.dx][curr.y + next.dy] = 0; maze[next.x][next.y] = 0;
+                        stack.push({x: next.x, y: next.y});
+                    } else { stack.pop(); }
+                }
+                for(let i=9; i<=11; i++) for(let j=9; j<=11; j++) maze[i][j] = 0;
+                for(let i=0; i<15; i++) maze[1+Math.floor(tRandom()*(cols-2))][1+Math.floor(tRandom()*(rows-2))] = 0;
+                for(let x=0; x<cols; x++) {
+                    for(let y=0; y<rows; y++) {
+                        if(maze[x][y] === 1) tempMapData.obstacles.push({x: x*cellSize, y: y*cellSize, w: cellSize, h: cellSize, type: 'wall'});
+                    }
+                }
+            } else if (mapName === "Forest box") {
+                for (let i = 0; i < 100; i++) {
+                    let wx = 100 + tRandom() * 2000; let wy = 100 + tRandom() * 2000;
+                    if (Math.hypot(wx - 1100, wy - 1100) > 250) { 
+                        let isWall = tRandom() < 0.2; 
+                        tempMapData.obstacles.push({ x: wx, y: wy, w: 60, h: 60, type: isWall ? 'wall' : 'tree' }); 
+                    }
+                }
+            } else if (mapName === "Big boxy") {
+                for (let i = 0; i < 40; i++) {
+                    let wx = 50 + tRandom() * 1600; let wy = 50 + tRandom() * 1600;
+                    if (Math.hypot(wx - 900, wy - 900) > 200) { tempMapData.obstacles.push({ x: wx, y: wy, w: 40 + tRandom()*60, h: 40 + tRandom()*60, type: 'wall' }); }
+                }
+            } else if (mapName === "Massive") {
+                for (let i = 0; i < 80; i++) {
+                    let wx = 100 + tRandom() * 3300; let wy = 100 + tRandom() * 3300;
+                    if (Math.hypot(wx - 1800, wy - 1800) > 400) {
+                        let isH = tRandom() > 0.5;
+                        tempMapData.obstacles.push({ x: wx, y: wy, w: isH ? 250 : 60, h: isH ? 60 : 250, type: 'wall' });
+                    }
+                }
+            } else if (mapName === "Random City") {
+                for (let i = 0; i < 150; i++) {
+                    let wx = 50 + tRandom() * 2600; let wy = 50 + tRandom() * 2600;
+                    if (Math.hypot(wx - 1400, wy - 1400) > 250) { tempMapData.obstacles.push({ x: wx, y: wy, w: 60 + tRandom()*150, h: 60 + tRandom()*150, type: 'wall' }); }
+                }
+            }
+
+            pctx.fillStyle = '#79A048';
+            pctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+            const scaleX = previewCanvas.width / tempMapData.w;
+            const scaleY = previewCanvas.height / tempMapData.h;
+
+            for (let obs of tempMapData.obstacles) {
+                if (obs.type === 'wall') { pctx.fillStyle = '#A1887F'; } else { pctx.fillStyle = '#66BB6A'; }
+                pctx.fillRect(obs.x * scaleX, obs.y * scaleY, obs.w * scaleX, obs.h * scaleY);
+            }
+        };
+        setTimeout(() => { if (window.updateMapPreview) window.updateMapPreview(); }, 100);
+
+        let currentMapData = null;
+        let currentMapName = "";
+        let currentMapSeed = 1;
+
+        const CELL_SIZE = 30;
+        let navGrid = [];     
+        let flowField = [];   
+        let gridCols = 0, gridRows = 0;
+        let lastFlowUpdate = 0;
+
+        function buildNavGrid() {
+            if(!currentMapData) return;
+            gridCols = Math.ceil(currentMapData.w / CELL_SIZE);
+            gridRows = Math.ceil(currentMapData.h / CELL_SIZE);
+            navGrid = new Array(gridCols).fill(0).map(() => new Array(gridRows).fill(1)); 
+
+            const padding = 25; 
+
+            for(let obs of currentMapData.obstacles) {
+                let startX = Math.max(0, Math.floor((obs.x - padding) / CELL_SIZE));
+                let startY = Math.max(0, Math.floor((obs.y - padding) / CELL_SIZE));
+                let endX = Math.min(gridCols - 1, Math.floor((obs.x + obs.w + padding) / CELL_SIZE));
+                let endY = Math.min(gridRows - 1, Math.floor((obs.y + obs.h + padding) / CELL_SIZE));
+                
+                for(let x = startX; x <= endX; x++) {
+                    for(let y = startY; y <= endY; y++) { navGrid[x][y] = 0; }
+                }
+            }
+        }
+
+        function updateFlowField() {
+            if(!currentMapData || gridCols === 0 || gridRows === 0) return;
+            let integrationField = new Array(gridCols).fill(0).map(() => new Array(gridRows).fill(99999));
+            let queue = [];
+
+            let px = Math.floor(player.x / CELL_SIZE); let py = Math.floor(player.y / CELL_SIZE);
+            if(px >= 0 && px < gridCols && py >= 0 && py < gridRows) {
+                integrationField[px][py] = 0; queue.push({x: px, y: py});
+            }
+            if (isMultiplayer) {
+                for(let uid in remotePlayers) {
+                    let rx = Math.floor(remotePlayers[uid].x / CELL_SIZE); let ry = Math.floor(remotePlayers[uid].y / CELL_SIZE);
+                    if(rx >= 0 && rx < gridCols && ry >= 0 && ry < gridRows) {
+                        integrationField[rx][ry] = 0; queue.push({x: rx, y: ry});
+                    }
+                }
+            }
+
+            let head = 0;
+            let dirs = [[0,-1],[0,1],[-1,0],[1,0], [-1,-1],[1,-1],[-1,1],[1,1]]; 
+            
+            while(head < queue.length) {
+                let curr = queue[head++];
+                for(let d of dirs) {
+                    let nx = curr.x + d[0], ny = curr.y + d[1];
+                    if(nx >= 0 && nx < gridCols && ny >= 0 && ny < gridRows && navGrid[nx][ny] === 1) {
+                        let cost = (d[0] !== 0 && d[1] !== 0) ? 14 : 10;
+                        if(integrationField[curr.x][curr.y] + cost < integrationField[nx][ny]) {
+                            integrationField[nx][ny] = integrationField[curr.x][curr.y] + cost;
+                            queue.push({x: nx, y: ny});
+                        }
+                    }
+                }
+            }
+
+            flowField = new Array(gridCols).fill(0).map(() => new Array(gridRows).fill(null));
+            for(let x=0; x<gridCols; x++) {
+                for(let y=0; y<gridRows; y++) {
+                    let minDist = integrationField[x][y]; let bestDir = null;
+                    for(let d of dirs) {
+                        let nx = x + d[0], ny = y + d[1];
+                        if(nx >= 0 && nx < gridCols && ny >= 0 && ny < gridRows) {
+                            if(integrationField[nx][ny] < minDist) { minDist = integrationField[nx][ny]; bestDir = d; }
+                        }
+                    }
+                    if(bestDir) {
+                        let len = Math.hypot(bestDir[0], bestDir[1]);
+                        flowField[x][y] = {dx: bestDir[0]/len, dy: bestDir[1]/len};
+                    }
+                }
+            }
+        }
+
+        function seededRandom() { let x = Math.sin(currentMapSeed++) * 10000; return x - Math.floor(x); }
+
+        function buildMap(mapName, seed) {
+            currentMapName = mapName;
+            currentMapSeed = seed || Date.now();
+            let seedBackup = currentMapSeed; 
+            
+            currentMapData = JSON.parse(JSON.stringify(baseGameMaps[mapName]));
+
+            if (mapName === "Maze (미로)") {
+                let cols = 21, rows = 21, cellSize = 150;
+                let maze = Array.from({length: cols}, () => Array(rows).fill(1));
+                let stack = [{x: 11, y: 11}]; maze[11][11] = 0;
+                
+                while(stack.length > 0) {
+                    let curr = stack[stack.length - 1];
+                    let neighbors = [];
+                    let dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+                    for(let d of dirs) {
+                        let nx = curr.x + d[0], ny = curr.y + d[1];
+                        if(nx > 0 && nx < cols-1 && ny > 0 && ny < rows-1 && maze[nx][ny] === 1) {
+                            neighbors.push({x: nx, y: ny, dx: d[0]/2, dy: d[1]/2});
+                        }
+                    }
+                    if(neighbors.length > 0) {
+                        let next = neighbors[Math.floor(seededRandom() * neighbors.length)];
+                        maze[curr.x + next.dx][curr.y + next.dy] = 0; maze[next.x][next.y] = 0;
+                        stack.push({x: next.x, y: next.y});
+                    } else { stack.pop(); }
+                }
+                
+                for(let i=9; i<=11; i++) for(let j=9; j<=11; j++) maze[i][j] = 0;
+                for(let i=0; i<15; i++) maze[1+Math.floor(seededRandom()*(cols-2))][1+Math.floor(seededRandom()*(rows-2))] = 0;
+                
+                for(let x=0; x<cols; x++) {
+                    for(let y=0; y<rows; y++) {
+                        if(maze[x][y] === 1) currentMapData.obstacles.push({x: x*cellSize, y: y*cellSize, w: cellSize, h: cellSize, type: 'wall'});
+                    }
+                }
+            } else if (mapName === "Forest box") {
+                for (let i = 0; i < 100; i++) {
+                    let wx = 100 + seededRandom() * 2000; let wy = 100 + seededRandom() * 2000;
+                    if (Math.hypot(wx - 1100, wy - 1100) > 250) { 
+                        let isWall = seededRandom() < 0.2; 
+                        currentMapData.obstacles.push({ x: wx, y: wy, w: 60, h: 60, type: isWall ? 'wall' : 'tree' }); 
+                    }
+                }
+            } else if (mapName === "Big boxy") {
+                for (let i = 0; i < 40; i++) {
+                    let wx = 50 + seededRandom() * 1600; let wy = 50 + seededRandom() * 1600;
+                    if (Math.hypot(wx - 900, wy - 900) > 200) {
+                        currentMapData.obstacles.push({ x: wx, y: wy, w: 40 + seededRandom()*60, h: 40 + seededRandom()*60, type: 'wall' });
+                    }
+                }
+            } else if (mapName === "Massive") {
+                for (let i = 0; i < 80; i++) {
+                    let wx = 100 + seededRandom() * 3300; let wy = 100 + seededRandom() * 3300;
+                    if (Math.hypot(wx - 1800, wy - 1800) > 400) {
+                        let isHorizontal = seededRandom() > 0.5;
+                        currentMapData.obstacles.push({ x: wx, y: wy, w: isHorizontal ? 250 : 60, h: isHorizontal ? 60 : 250, type: 'wall' });
+                    }
+                }
+            } else if (mapName === "Random City") {
+                for (let i = 0; i < 150; i++) {
+                    let wx = 50 + seededRandom() * 2600; let wy = 50 + seededRandom() * 2600;
+                    if (Math.hypot(wx - 1400, wy - 1400) > 250) {
+                        currentMapData.obstacles.push({ x: wx, y: wy, w: 60 + seededRandom()*150, h: 60 + seededRandom()*150, type: 'wall' });
+                    }
+                }
+            }
+            
+            buildNavGrid();
+            currentMapSeed = seedBackup; 
+        }
+
+        const baseWeapons = {
+            1: { id: 1, key: '1', name: 'Pistol', ammo: Infinity, maxAmmo: Infinity, fireRate: 350, bullets: 1, spread: 0.05, damage: 1, speed: 850, life: 0.6, knockback: 6, color: '#FFF59D', acquired: true, level: 1, xp: 0, nextXp: 10 },
+            2: { id: 2, key: '2', name: 'UZI', ammo: 120, maxAmmo: 120, fireRate: 110, bullets: 1, spread: 0.12, damage: 1, speed: 1200, life: 0.9, knockback: 14, color: '#FFF59D', acquired: false, level: 1, xp: 0, nextXp: 15 },
+            3: { id: 3, key: '3', name: 'Shotgun', ammo: 24, maxAmmo: 24, fireRate: 750, bullets: 3, spread: 0.35, damage: 2, speed: 1000, life: 0.35, knockback: 32, color: '#FFA726', acquired: false, level: 1, xp: 0, nextXp: 15 },
+            4: { id: 4, key: '4', name: 'AKM', ammo: 90, maxAmmo: 90, fireRate: 140, bullets: 1, spread: 0.08, damage: 4, speed: 1300, life: 1.0, knockback: 10, color: '#EF5350', acquired: false, level: 1, xp: 0, nextXp: 20 },
+            5: { id: 5, key: '5', name: 'Groza', ammo: 100, maxAmmo: 100, fireRate: 90, bullets: 1, spread: 0.04, damage: 5, speed: 1500, life: 1.0, knockback: 8, color: '#66BB6A', acquired: false, level: 1, xp: 0, nextXp: 25 },
+            6: { id: 6, key: '6', name: 'Beryl', ammo: 120, maxAmmo: 120, fireRate: 80, bullets: 1, spread: 0.15, damage: 4.5, speed: 1400, life: 1.0, knockback: 16, color: '#42A5F5', acquired: false, level: 1, xp: 0, nextXp: 25 },
+            7: { id: 7, key: '7', name: 'Railgun', ammo: 15, maxAmmo: 15, fireRate: 900, bullets: 1, spread: 0, damage: 12, speed: 2500, life: 1.5, knockback: 0, color: '#C084FC', acquired: false, level: 1, xp: 0, nextXp: 30, pierce: true }
+        };
+        
+        let weapons = {}; 
+        let currentWeaponKey = 1;
+
+        let gameScale = 1;
+        let viewWidth = window.innerWidth;
+        let viewHeight = window.innerHeight;
+
+        function resizeCanvas() { 
+            viewWidth = window.innerWidth; 
+            viewHeight = window.innerHeight;
+            const dpr = window.devicePixelRatio || 1; 
+            canvas.width = viewWidth * dpr; 
+            canvas.height = viewHeight * dpr;
+            canvas.style.width = `${viewWidth}px`;
+            canvas.style.height = `${viewHeight}px`;
+            gameScale = Math.max(viewWidth / 1920, viewHeight / 1080) * dpr;
+            if (gameScale < 0.5 * dpr) gameScale = 0.5 * dpr; 
+        }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        const keys = { w: false, a: false, s: false, d: false };
+        const mouse = { x: viewWidth / 2, y: viewHeight / 2, isDown: false };
+
+        let touches = {
+            left: { active: false, id: null, startX: 0, startY: 0, curX: 0, curY: 0 },
+            right: { active: false, id: null, startX: 0, startY: 0, curX: 0, curY: 0 }
+        };
+
+        canvas.addEventListener('touchstart', handleTouch, {passive: false});
+        canvas.addEventListener('touchmove', handleTouch, {passive: false});
+        canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
+        canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+        
+        function handleTouch(e) {
+            e.preventDefault();
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                let t = e.changedTouches[i];
+                if (t.clientX < viewWidth / 2) {
+                    if (!touches.left.active) {
+                        touches.left.active = true; touches.left.id = t.identifier;
+                        touches.left.startX = t.clientX; touches.left.startY = t.clientY;
+                    }
+                    if (touches.left.id === t.identifier) { touches.left.curX = t.clientX; touches.left.curY = t.clientY; }
+                } else { 
+                    if (!touches.right.active) {
+                        touches.right.active = true; touches.right.id = t.identifier;
+                        touches.right.startX = t.clientX; touches.right.startY = t.clientY;
+                        if (!isPaused) mouse.isDown = true;
+                    }
+                    if (touches.right.id === t.identifier) {
+                        touches.right.curX = t.clientX; touches.right.curY = t.clientY;
+                        if (!isPaused) player.angle = Math.atan2(touches.right.curY - touches.right.startY, touches.right.curX - touches.right.startX);
+                    }
+                }
+            }
+        }
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                let t = e.changedTouches[i];
+                if (touches.left.id === t.identifier) { touches.left.active = false; touches.left.id = null; }
+                if (touches.right.id === t.identifier) { touches.right.active = false; touches.right.id = null; mouse.isDown = false; }
+            }
+        }
+
+        window.cycleWeapon = (direction = 1) => {
+            let available = [];
+            for (let i = 1; i <= 7; i++) { if (weapons[i] && weapons[i].acquired) available.push(i); }
+            if (available.length > 1) {
+                let currentIndex = available.indexOf(currentWeaponKey);
+                let nextIndex = (currentIndex + direction + available.length) % available.length;
+                currentWeaponKey = available[nextIndex];
+                updateUI();
+            }
+        };
+
+        // 일시정지 제어 함수
+        window.togglePause = () => {
+            if (!gameActive || isGameOver) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                document.getElementById('pauseScreen').style.display = 'flex';
+                mouse.isDown = false; // 사격 중지
+            } else {
+                document.getElementById('pauseScreen').style.display = 'none';
+                lastTime = performance.now(); // 시간 점프 방지 (싱글플레이)
+            }
+        };
+
+        window.resumeGame = () => {
+            if (isPaused) window.togglePause();
+        };
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key; 
+            if (key === 'Escape') { window.togglePause(); return; }
+            if (keys.hasOwnProperty(key.toLowerCase())) keys[key.toLowerCase()] = true;
+            if (['1','2','3','4','5','6','7'].includes(key) && weapons[parseInt(key)] && weapons[parseInt(key)].acquired && !isPaused) {
+                currentWeaponKey = parseInt(key); updateUI();
+            }
+        });
+        window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (keys.hasOwnProperty(key)) keys[key] = false; });
+        window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousedown', (e) => { if (e.button === 0 && !isPaused) mouse.isDown = true; });
+        window.addEventListener('mouseup', (e) => { if (e.button === 0) mouse.isDown = false; });
+        window.addEventListener('wheel', (e) => { if (isPaused) return; if (e.deltaY > 0) window.cycleWeapon(1); else if (e.deltaY < 0) window.cycleWeapon(-1); });
+
+        const camera = { x: 0, y: 0 };
+        const player = { x: 0, y: 0, radius: 30, speed: 300, angle: 0, lastShotTime: 0 };
+        let bullets = []; let enemies = []; let particles = []; let droppedWeapons = [];
+
+        const colors = { 
+            skin: '#FAD591', outline: '#322E2C', wood: '#94553B', metal: '#463D3A', enemySkin: '#E57373', blood: '#D32F2F',
+            wall: '#A1887F', wallOutline: '#4E342E', tree: '#66BB6A', treeOutline: '#2E7D32', remoteSkin: '#81C784'
+        };
+
+        let msgTimeout;
+        function showMessage(text) {
+            const msgBox = document.getElementById('messageBoard');
+            msgBox.innerText = text; msgBox.style.opacity = 1;
+            clearTimeout(msgTimeout); msgTimeout = setTimeout(() => { msgBox.style.opacity = 0; }, 2500);
+        }
+
+        function updateUI() {
+            document.getElementById('scoreText').innerText = `개인 점수: ${score}`;
+            document.getElementById('roundText').innerText = `라운드: ${currentRound}`;
+            document.getElementById('roundProgress').innerText = `처치 진행도: ${enemiesKilledInRound} / ${enemiesTotalInRound}`;
+            
+            const w = weapons[currentWeaponKey];
+            if (!w) return;
+
+            document.getElementById('currentWeaponText').innerText = `무기: ${w.name} [Lv.${w.level}]`;
+            
+            if (w.level >= 5 && w.id !== 1) {
+                document.getElementById('xpLabel').innerText = `숙련도: MAX LEVEL`;
+                document.getElementById('weaponXpBar').style.width = '100%'; document.getElementById('weaponXpBar').style.backgroundColor = '#FFD700';
+            } else {
+                document.getElementById('xpLabel').innerText = `숙련도: ${w.xp} / ${w.nextXp}`;
+                document.getElementById('weaponXpBar').style.width = (w.xp / w.nextXp * 100) + '%'; document.getElementById('weaponXpBar').style.backgroundColor = '#42A5F5';
+            }
+
+            document.getElementById('weaponAmmoText').innerText = `탄약: ${w.ammo === Infinity ? '∞' : w.ammo + ' / ' + w.maxAmmo}`;
+
+            let invList = [];
+            for(let id in weapons) { if(weapons[id].acquired) invList.push(`[${id}] ${weapons[id].name}`); }
+            document.getElementById('inventoryDisplay').innerText = "보유 무기: " + invList.join(" | ");
+        }
+
+        function gainWeaponXp(amount) {
+            const w = weapons[currentWeaponKey];
+            if (w.level >= 5 && w.id !== 1) return;
+            
+            w.xp += amount;
+            if (w.xp >= w.nextXp) {
+                w.xp -= w.nextXp; w.level += 1; 
+                w.nextXp = w.id === 1 ? Math.floor(w.nextXp * 1.4) : Math.floor(w.nextXp * 1.5);
+                
+                let upgradeMsg = "";
+                if (w.id === 1) { 
+                    w.damage += 0.5; w.speed += 50; w.fireRate = Math.max(50, w.fireRate - 20); 
+                    if (w.level === 5) { w.pierce = true; upgradeMsg = "적 관통 능력 획득!"; } 
+                    else if (w.level % 5 === 0) { w.bullets += 1; w.spread += 0.05; upgradeMsg = `다중 발사(${w.bullets}발) 추가!`; } 
+                    else if (w.level % 3 === 0) { w.knockback += 3; upgradeMsg = "강력한 넉백 파워!"; } 
+                    else { upgradeMsg = "공격력 & 탄속 상향!"; }
+                }
+                else if (w.id === 2) { w.fireRate -= 15; w.maxAmmo += 40; w.ammo = w.maxAmmo; }
+                else if (w.id === 3) { w.bullets += 1; w.spread += 0.05; w.maxAmmo += 6; w.ammo = w.maxAmmo; }
+                else if ([4,5,6].includes(w.id)) { w.damage += 1; w.fireRate -= 10; w.maxAmmo += 30; w.ammo = w.maxAmmo; }
+                else if (w.id === 7) { w.damage += 4; w.maxAmmo += 5; w.ammo = w.maxAmmo; }
+                
+                if (upgradeMsg) { showMessage(`🔥 ${w.name} [Lv.${w.level}] 레벨 업! - ${upgradeMsg}`); } 
+                else { showMessage(`🔥 무기 레벨 업! ${w.name} [Lv.${w.level}]`); }
+            }
+            updateUI();
+        }
+
+        function startRoundSequence(round) {
+            isRoundTransition = true;
+            enemiesTotalInRound = 10 + (round - 1) * 5;
+            enemiesSpawnedInRound = 0;
+            enemiesKilledInRound = 0;
+            
+            const announcer = document.getElementById('roundAnnouncer');
+            const title = document.getElementById('roundAnnouncerTitle');
+            const sub = document.getElementById('roundAnnouncerSub');
+            
+            announcer.style.display = 'block';
+            if (round === 1) { title.innerText = `게임 시작!`; title.style.color = '#FFF'; } 
+            else { title.innerText = `라운드 ${round - 1} 클리어!`; title.style.color = '#FF7043'; }
+            
+            let countdown = 5;
+            sub.innerText = `다음 라운드까지 ${countdown}초`;
+            updateUI();
+            
+            if (roundCountdownInterval) clearInterval(roundCountdownInterval);
+            roundCountdownInterval = setInterval(() => {
+                // 일시정지 중이면 카운트다운 일시멈춤 (선택적)
+                if (isPaused && !isMultiplayer) return;
+                
+                countdown--;
+                if (countdown > 0) { sub.innerText = `다음 라운드까지 ${countdown}초`; } 
+                else {
+                    clearInterval(roundCountdownInterval);
+                    announcer.style.display = 'none';
+                    isRoundTransition = false;
+                    showMessage(`웨이브 시작!`);
+                    spawnEnemy();
+                }
+            }, 1000);
+        }
+
+        function fireWeapon(startX, startY, angle, weaponData, isRemote = false) {
+            const gunTipDist = 80;
+            const gunTipX = startX + Math.cos(angle) * gunTipDist;
+            const gunTipY = startY + Math.sin(angle) * gunTipDist;
+
+            for (let i = 0; i < weaponData.bullets; i++) {
+                let bAngle = angle;
+                if (weaponData.bullets > 1) { bAngle += (i - (weaponData.bullets - 1) / 2) * (weaponData.spread / (weaponData.bullets - 1)); }
+                else { bAngle += (Math.random() - 0.5) * weaponData.spread; }
+
+                bullets.push({
+                    x: gunTipX, y: gunTipY, vx: Math.cos(bAngle) * weaponData.speed, vy: Math.sin(bAngle) * weaponData.speed,
+                    angle: bAngle, radius: weaponData.id === 7 ? 8 : 4,
+                    damage: weaponData.damage, life: weaponData.life, knockback: weaponData.knockback, 
+                    color: isRemote ? '#81D4FA' : weaponData.color, 
+                    pierce: weaponData.pierce || false, hitList: []
+                });
+            }
+            createParticles(gunTipX, gunTipY, angle, weaponData.id === 3 ? 8 : 3, isRemote ? '#81D4FA' : weaponData.color, 500);
+        }
+
+        function shoot(time) {
+            const w = weapons[currentWeaponKey];
+            if (time - player.lastShotTime > w.fireRate) {
+                if (w.ammo <= 0 && currentWeaponKey !== 1) {
+                    currentWeaponKey = 1; showMessage("탄약 고갈! 권총으로 교체됩니다."); updateUI(); return;
+                }
+                if (currentWeaponKey !== 1) w.ammo--;
+                
+                fireWeapon(player.x, player.y, player.angle, w, false);
+                player.lastShotTime = time; 
+                updateUI();
+            }
+        }
+
+        function rollWeaponDrop(x, y) {
+            if (Math.random() < 0.20) {
+                const wIdList = [2, 3, 4, 5, 6, 7];
+                const chosenId = wIdList[Math.floor(Math.random() * wIdList.length)];
+                droppedWeapons.push({ x: x, y: y, radius: 20, id: chosenId, name: baseWeapons[chosenId].name, color: baseWeapons[chosenId].color });
+            }
+        }
+
+        function spawnEnemy() {
+            if (isGameOver || !gameActive || !currentMapData || isRoundTransition) return;
+            // 멀티플레이 방장이 아니면 스폰을 막는 옵션도 가능하지만, 각자 할당량 채우는 형식으로 유지
+            if (enemiesSpawnedInRound >= enemiesTotalInRound) return;
+
+            let ex, ey; let spawned = false;
+            for(let i=0; i<30; i++) {
+                let tx = Math.random() * currentMapData.w; let ty = Math.random() * currentMapData.h;
+                const logicalViewW = canvas.width / gameScale;
+                const logicalViewH = canvas.height / gameScale;
+                if (tx < camera.x - 60 || tx > camera.x + logicalViewW + 60 || ty < camera.y - 60 || ty > camera.y + logicalViewH + 60) {
+                    let inObstacle = false;
+                    for(let obs of currentMapData.obstacles) {
+                        if (tx >= obs.x - 30 && tx <= obs.x + obs.w + 30 && ty >= obs.y - 30 && ty <= obs.y + obs.h + 30) { inObstacle = true; break; }
+                    }
+                    if(!inObstacle) { ex = tx; ey = ty; spawned = true; break; }
+                }
+            }
+            if (!spawned) {
+                let found = false;
+                for(let attempt=0; attempt<50; attempt++) {
+                    let rx = Math.floor(Math.random() * gridCols); let ry = Math.floor(Math.random() * gridRows);
+                    if(navGrid[rx] && navGrid[rx][ry] === 1) {
+                        ex = rx * CELL_SIZE + CELL_SIZE/2; ey = ry * CELL_SIZE + CELL_SIZE/2;
+                        found = true; break;
+                    }
+                }
+                if(!found) { ex = currentMapData.w/2; ey = currentMapData.h/2; }
+            }
+            
+            let eHp = 2 + Math.floor(currentRound / 3);
+            let eSpeed = 150 + Math.random() * 60 + (currentRound * 5);
+            enemies.push({ id: enemyIdCounter++, x: ex, y: ey, radius: 25, speed: eSpeed, hp: eHp });
+            
+            enemiesSpawnedInRound++;
+            updateUI();
+            
+            let nextSpawn = Math.max(150, 1500 - score * 7 - currentRound * 50);
+            if (enemiesSpawnedInRound < enemiesTotalInRound) { 
+                // 일시정지가 아닐때만 스폰 (멀티면 상관없이)
+                setTimeout(spawnEnemy, nextSpawn); 
+            }
+        }
+
+        function createParticles(x, y, angle, amount, color, speedScale) {
+            for (let i = 0; i < amount; i++) {
+                const pAngle = angle + (Math.random() - 0.5) * Math.PI;
+                particles.push({ x: x, y: y, vx: Math.cos(pAngle) * Math.random() * speedScale, vy: Math.sin(pAngle) * Math.random() * speedScale, radius: Math.random() * 4 + 2, color: color, life: Math.random() * 0.3 + 0.1 });
+            }
+        }
+
+        function applyDynamicCollisions(entity) {
+            if (!currentMapData) return;
+            if (entity.x < entity.radius) entity.x = entity.radius;
+            if (entity.x > currentMapData.w - entity.radius) entity.x = currentMapData.w - entity.radius;
+            if (entity.y < entity.radius) entity.y = entity.radius;
+            if (entity.y > currentMapData.h - entity.radius) entity.y = currentMapData.h - entity.radius;
+
+            for (let obs of currentMapData.obstacles) {
+                let closestX = Math.max(obs.x, Math.min(entity.x, obs.x + obs.w));
+                let closestY = Math.max(obs.y, Math.min(entity.y, obs.y + obs.h));
+                let dx = entity.x - closestX; let dy = entity.y - closestY; let distSq = dx * dx + dy * dy;
+                if (distSq < entity.radius * entity.radius) {
+                    let dist = Math.sqrt(distSq); if (dist === 0) { dx = 1; dy = 0; dist = 1; }
+                    let overlap = entity.radius - dist;
+                    entity.x += (dx / dist) * overlap; entity.y += (dy / dist) * overlap;
+                }
+            }
+        }
+
+        function update(deltaTime, time) {
+            if (isGameOver || !gameActive || !currentMapData) return;
+            const dt = deltaTime / 1000;
+            
+            if (time - lastFlowUpdate > 200) { updateFlowField(); lastFlowUpdate = time; }
+            
+            let dx = 0, dy = 0;
+            
+            // 일시정지 중이 아닐 때만 로컬 조작을 반영
+            if (!isPaused) {
+                if (keys.w) dy -= 1; if (keys.s) dy += 1; if (keys.a) dx -= 1; if (keys.d) dx += 1;
+                
+                if (touches.left.active) {
+                    let jx = touches.left.curX - touches.left.startX; let jy = touches.left.curY - touches.left.startY;
+                    let dist = Math.hypot(jx, jy);
+                    if (dist > 10) { 
+                        dx = jx / dist; dy = jy / dist;
+                        let normalizedDist = Math.min(dist, 50) / 50; dx *= normalizedDist; dy *= normalizedDist;
+                    }
+                } else {
+                    if (dx !== 0 && dy !== 0) { const length = Math.sqrt(dx * dx + dy * dy); dx /= length; dy /= length; }
+                }
+            }
+
+            player.x += dx * player.speed * dt; player.y += dy * player.speed * dt;
+            applyDynamicCollisions(player);
+
+            if (!isPaused) {
+                if (!touches.right.active) { player.angle = Math.atan2(mouse.y - viewHeight / 2, mouse.x - viewWidth / 2); }
+                if (mouse.isDown) shoot(time);
+            }
+
+            camera.x = player.x - (canvas.width / 2) / gameScale; 
+            camera.y = player.y - (canvas.height / 2) / gameScale;
+
+            for (let i = droppedWeapons.length - 1; i >= 0; i--) {
+                const item = droppedWeapons[i];
+                if (Math.hypot(player.x - item.x, player.y - item.y) < player.radius + item.radius) {
+                    const target = weapons[item.id];
+                    if (!target.acquired) {
+                        target.acquired = true; target.ammo = target.maxAmmo; currentWeaponKey = item.id;
+                        showMessage(`🎁 신규 총기 획득: ${item.name}!`);
+                    } else {
+                        target.ammo = Math.min(target.ammo + Math.floor(target.maxAmmo * 0.6), target.maxAmmo);
+                        showMessage(`🔋 ${item.name}의 탄약을 보충했습니다!`);
+                    }
+                    droppedWeapons.splice(i, 1); updateUI();
+                }
+            }
+
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i]; b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+                let vanish = false;
+                if (b.x < 0 || b.x > currentMapData.w || b.y < 0 || b.y > currentMapData.h) vanish = true;
+                if (!vanish && !b.pierce) {
+                    for (let obs of currentMapData.obstacles) {
+                        if (obs.type === 'wall' && b.x >= obs.x && b.x <= obs.x + obs.w && b.y >= obs.y && b.y <= obs.y + obs.h) { vanish = true; break; }
+                    }
+                }
+                if (vanish || b.life <= 0) { bullets.splice(i, 1); }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.radius *= 0.92; p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                let targetX = player.x, targetY = player.y, minDist = Math.hypot(player.x - e.x, player.y - e.y);
+                if (isMultiplayer) {
+                    for (let uid in remotePlayers) {
+                        const rp = remotePlayers[uid];
+                        const dist = Math.hypot(rp.x - e.x, rp.y - e.y);
+                        if (dist < minDist) { minDist = dist; targetX = rp.x; targetY = rp.y; }
+                    }
+                }
+
+                let hasLOS = true;
+                let steps = Math.ceil(minDist / 15); 
+                for (let k = 1; k <= steps; k++) {
+                    let cx = e.x + (targetX - e.x) * (k / steps); let cy = e.y + (targetY - e.y) * (k / steps);
+                    for (let obs of currentMapData.obstacles) {
+                        if (cx >= obs.x - 15 && cx <= obs.x + obs.w + 15 && cy >= obs.y - 15 && cy <= obs.y + obs.h + 15) {
+                            hasLOS = false; break;
+                        }
+                    }
+                    if (!hasLOS) break;
+                }
+
+                let exCell = Math.floor(e.x / CELL_SIZE); let eyCell = Math.floor(e.y / CELL_SIZE);
+                let moveDx = 0, moveDy = 0;
+
+                if (exCell >= 0 && exCell < gridCols && eyCell >= 0 && eyCell < gridRows && flowField[exCell] && flowField[exCell][eyCell]) {
+                    moveDx = flowField[exCell][eyCell].dx; moveDy = flowField[exCell][eyCell].dy;
+                    if (hasLOS) {
+                        const angleToTarget = Math.atan2(targetY - e.y, targetX - e.x);
+                        let blend = Math.max(0, 0.4 - minDist / 1000); 
+                        moveDx = moveDx * (1 - blend) + Math.cos(angleToTarget) * blend;
+                        moveDy = moveDy * (1 - blend) + Math.sin(angleToTarget) * blend;
+                        const len = Math.hypot(moveDx, moveDy); 
+                        if (len > 0) { moveDx /= len; moveDy /= len; }
+                    }
+                } else {
+                    const angleToTarget = Math.atan2(targetY - e.y, targetX - e.x);
+                    moveDx = Math.cos(angleToTarget); moveDy = Math.sin(angleToTarget);
+                }
+
+                e.x += moveDx * e.speed * dt; e.y += moveDy * e.speed * dt;
+                applyDynamicCollisions(e);
+
+                // 플레이어와 충돌 시 게임 오버 판정 (자신의 캐릭터에만 해당)
+                if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius - 5) { gameOver(); }
+
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    const b = bullets[j];
+                    if (Math.hypot(e.x - b.x, e.y - b.y) < e.radius + b.radius && !b.hitList.includes(e.id)) {
+                        e.hp -= b.damage; b.hitList.push(e.id);
+                        e.x += Math.cos(b.angle) * b.knockback; e.y += Math.sin(b.angle) * b.knockback;
+                        applyDynamicCollisions(e);
+                        
+                        createParticles(e.x, e.y, b.angle, 5, colors.blood, 220);
+                        if (!b.pierce) bullets.splice(j, 1);
+
+                        if (e.hp <= 0) {
+                            score += 10; gainWeaponXp(1); rollWeaponDrop(e.x, e.y);
+                            enemies.splice(i, 1); 
+                            
+                            enemiesKilledInRound++; updateUI();
+                            if (enemiesKilledInRound >= enemiesTotalInRound && !isRoundTransition) {
+                                currentRound++; startRoundSequence(currentRound);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            for(let uid in remotePlayers) {
+                let rp = remotePlayers[uid];
+                if (rp.targetX !== undefined) { rp.x += (rp.targetX - rp.x) * 0.3; rp.y += (rp.targetY - rp.y) * 0.3; }
+            }
+        }
+
+        function drawPlayerModel(x, y, angle, isRemote = false) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+            ctx.lineWidth = 6; ctx.strokeStyle = colors.outline;
+            
+            ctx.fillStyle = colors.wood; ctx.beginPath(); ctx.roundRect(15, 8, 35, 12, 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = colors.metal; ctx.beginPath(); ctx.roundRect(45, 10, 40, 8, 1); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(50, 18); ctx.lineTo(55, 35); ctx.lineTo(65, 35); ctx.lineTo(62, 18); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillRect(80, 10, 5, 4); ctx.strokeRect(80, 10, 5, 4);
+            ctx.fillStyle = colors.wood; ctx.fillRect(50, 6, 25, 4); ctx.strokeRect(50, 6, 25, 4);
+
+            const bodyColor = isRemote ? colors.remoteSkin : colors.skin;
+            ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fillStyle = bodyColor; ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(60, 4, 12, 0, Math.PI * 2); ctx.fillStyle = bodyColor; ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(30, 22, 12, 0, Math.PI * 2); ctx.fillStyle = bodyColor; ctx.fill(); ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawVirtualJoysticks() {
+            ctx.setTransform(1, 0, 0, 1, 0, 0); 
+            if (touches.left.active) {
+                const maxR = 50; let jx = touches.left.curX - touches.left.startX; let jy = touches.left.curY - touches.left.startY;
+                let dist = Math.hypot(jx, jy); let drawX = touches.left.startX + (jx / dist) * Math.min(dist, maxR); let drawY = touches.left.startY + (jy / dist) * Math.min(dist, maxR);
+                ctx.beginPath(); ctx.arc(touches.left.startX, touches.left.startY, maxR, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.beginPath(); ctx.arc(drawX, drawY, 25, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+            }
+            if (touches.right.active) {
+                const maxR = 50; let jx = touches.right.curX - touches.right.startX; let jy = touches.right.curY - touches.right.startY;
+                let dist = Math.hypot(jx, jy); let drawX = touches.right.startX + (jx / dist) * Math.min(dist, maxR); let drawY = touches.right.startY + (jy / dist) * Math.min(dist, maxR);
+                ctx.beginPath(); ctx.arc(touches.right.startX, touches.right.startY, maxR, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.beginPath(); ctx.arc(drawX, drawY, 25, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+            }
+        }
+
+        function draw() {
+            if (!currentMapData) return;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = '#1e1e1e'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save(); ctx.scale(gameScale, gameScale); ctx.translate(-camera.x, -camera.y);
+
+            ctx.fillStyle = '#79A048'; ctx.fillRect(0, 0, currentMapData.w, currentMapData.h);
+            ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 2;
+            const gridSize = 100;
+            const logicalViewW = canvas.width / gameScale; const logicalViewH = canvas.height / gameScale;
+            const startX = Math.max(0, Math.floor(camera.x / gridSize) * gridSize);
+            const startY = Math.max(0, Math.floor(camera.y / gridSize) * gridSize);
+            const endX = Math.min(currentMapData.w, camera.x + logicalViewW);
+            const endY = Math.min(currentMapData.h, camera.y + logicalViewH);
+            ctx.beginPath();
+            for (let x = startX; x <= endX; x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, currentMapData.h); }
+            for (let y = startY; y <= endY; y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(currentMapData.w, y); }
+            ctx.stroke();
+
+            droppedWeapons.forEach(item => {
+                ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = item.color;
+                ctx.fillStyle = '#3E2723'; ctx.strokeStyle = item.color; ctx.lineWidth = 3;
+                ctx.fillRect(item.x - 16, item.y - 12, 32, 24); ctx.strokeRect(item.x - 16, item.y - 12, 32, 24);
+                ctx.shadowBlur = 0; ctx.fillStyle = '#FFF'; ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(item.name.substring(0, 3), item.x, item.y); ctx.restore();
+            });
+
+            currentMapData.obstacles.forEach(obs => {
+                if (obs.type === 'wall') { ctx.fillStyle = colors.wall; ctx.strokeStyle = colors.wallOutline; }
+                else { ctx.fillStyle = colors.tree; ctx.strokeStyle = colors.treeOutline; }
+                ctx.lineWidth = 4; ctx.fillRect(obs.x, obs.y, obs.w, obs.h); ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                if (obs.type === 'tree') { ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.strokeRect(obs.x + 6, obs.y + 6, obs.w - 12, obs.h - 12); }
+            });
+
+            ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, currentMapData.w, currentMapData.h);
+
+            particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); });
+            bullets.forEach(b => { ctx.lineWidth = b.pierce ? 7 : 4; ctx.strokeStyle = b.color; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - (b.vx * 0.02), b.y - (b.vy * 0.02)); ctx.stroke(); });
+            
+            enemies.forEach(e => {
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fillStyle = colors.enemySkin; ctx.fill();
+                ctx.lineWidth = 6; ctx.strokeStyle = colors.outline; ctx.stroke();
+                const angleToPlayer = Math.atan2(player.y - e.y, player.x - e.x);
+                ctx.beginPath(); ctx.arc(e.x + Math.cos(angleToPlayer) * (e.radius * 0.5), e.y + Math.sin(angleToPlayer) * (e.radius * 0.5), e.radius * 0.3, 0, Math.PI * 2); ctx.fillStyle = colors.outline; ctx.fill();
+            });
+
+            for(let uid in remotePlayers) {
+                const rp = remotePlayers[uid]; drawPlayerModel(rp.x, rp.y, rp.angle, true);
+                ctx.fillStyle = '#FFF'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText("동료", rp.x, rp.y - 45);
+            }
+
+            drawPlayerModel(player.x, player.y, player.angle, false);
+            ctx.restore();
+            
+            if (!isPaused) {
+                drawVirtualJoysticks();
+            }
+        }
+
+        window.startSinglePlayer = (defaultMap) => {
+            isMultiplayer = false; document.getElementById('roomCodeDisplay').style.display = 'none';
+            const mapName = defaultMap || document.getElementById('mapSelect').value;
+            buildMap(mapName, Date.now());
+            startGameSequence();
+        };
+
+        window.createRoom = async () => {
+            if (!currentUser) return alert("서버에 연결되지 않았습니다.");
+            const mapName = document.getElementById('mapSelect').value;
+            activeRoomId = Math.random().toString(36).substring(2, 7).toUpperCase(); 
+            const seed = Date.now();
+            
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
+            await setDoc(roomRef, { mapName: mapName, host: currentUser.uid, createdAt: Date.now(), seed: seed });
+            
+            isMultiplayer = true;
+            document.getElementById('roomCodeDisplay').style.display = 'inline-block';
+            document.getElementById('roomCodeDisplay').innerText = `방 코드: ${activeRoomId}`;
+            
+            buildMap(mapName, seed);
+            startGameSequence(); startNetworkSync();
+        };
+
+        window.joinRoom = async () => {
+            if (!currentUser) return alert("서버에 연결되지 않았습니다.");
+            const inputId = document.getElementById('roomInput').value.toUpperCase();
+            if (inputId.length !== 5) return alert("5자리 방 코드를 입력하세요.");
+            
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', inputId);
+            const snap = await getDoc(roomRef);
+            if (snap.exists()) {
+                activeRoomId = inputId; isMultiplayer = true;
+                const data = snap.data();
+                
+                document.getElementById('roomCodeDisplay').style.display = 'inline-block';
+                document.getElementById('roomCodeDisplay').innerText = `방 코드: ${activeRoomId}`;
+                
+                buildMap(data.mapName, data.seed);
+                startGameSequence(); startNetworkSync();
+            } else { alert("방을 찾을 수 없습니다! 코드를 확인하세요."); }
+        };
+
+        function startNetworkSync() {
+            const playersRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId, 'players');
+            unsubscribePlayers = onSnapshot(playersRef, (snap) => {
+                snap.forEach(docSnap => {
+                    if (docSnap.id === currentUser.uid) return;
+                    const data = docSnap.data();
+                    if (!remotePlayers[docSnap.id]) {
+                        remotePlayers[docSnap.id] = { x: data.x, y: data.y, targetX: data.x, targetY: data.y, angle: data.angle, lastShotTime: data.lastShotTime };
+                    } else {
+                        const rp = remotePlayers[docSnap.id];
+                        rp.targetX = data.x; rp.targetY = data.y; rp.angle = data.angle;
+                        if (data.lastShotTime > rp.lastShotTime) {
+                            rp.lastShotTime = data.lastShotTime;
+                            const wpnData = baseWeapons[data.weaponKey] || baseWeapons[1];
+                            fireWeapon(rp.x, rp.y, rp.angle, wpnData, true); 
+                        }
+                    }
+                });
+            }, (error) => console.error(error));
+
+            networkSyncInterval = setInterval(() => {
+                if (!gameActive || isGameOver) return;
+                const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId, 'players', currentUser.uid);
+                setDoc(pRef, { x: player.x, y: player.y, angle: player.angle, weaponKey: currentWeaponKey, lastShotTime: player.lastShotTime });
+            }, 100);
+        }
+
+        function stopNetworkSync() {
+            if (unsubscribePlayers) unsubscribePlayers();
+            if (networkSyncInterval) clearInterval(networkSyncInterval);
+            if (isMultiplayer && currentUser && activeRoomId) {
+                deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId, 'players', currentUser.uid));
+            }
+            remotePlayers = {}; activeRoomId = null; isMultiplayer = false;
+        }
+
+        function startGameSequence() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('uiLayer').style.display = 'flex';
+            resetGameCore(); gameActive = true;
+            if (!animationId) { lastTime = performance.now(); gameLoop(lastTime); }
+        }
+
+        window.goToMainMenu = () => {
+            document.getElementById('gameOverScreen').style.display = 'none';
+            document.getElementById('pauseScreen').style.display = 'none';
+            document.getElementById('uiLayer').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'flex';
+            gameActive = false; isPaused = false; stopNetworkSync();
+        };
+
+        function gameOver() {
+            isGameOver = true;
+            document.getElementById('finalStats').innerHTML = `최종 획득 점수: ${score}점`;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+
+        window.resetGame = () => {
+            buildMap(currentMapName, currentMapSeed); 
+            resetGameCore();
+        };
+
+        function resetGameCore() {
+            player.x = currentMapData.w / 2; player.y = currentMapData.h / 2;
+            bullets = []; enemies = []; particles = []; droppedWeapons = [];
+            score = 0; enemyIdCounter = 0; isGameOver = false; isPaused = false;
+            
+            document.getElementById('pauseScreen').style.display = 'none';
+
+            weapons = JSON.parse(JSON.stringify(baseWeapons)); 
+            weapons[1].ammo = Infinity; weapons[1].maxAmmo = Infinity; currentWeaponKey = 1;
+            
+            document.getElementById('gameOverScreen').style.display = 'none';
+            keys.w = false; keys.a = false; keys.s = false; keys.d = false; mouse.isDown = false;
+            touches.left.active = false; touches.right.active = false;
+            
+            if (roundCountdownInterval) clearInterval(roundCountdownInterval);
+            document.getElementById('roundAnnouncer').style.display = 'none';
+            currentRound = 1;
+            updateUI(); 
+            startRoundSequence(currentRound);
+        }
+
+        function gameLoop(time) {
+            animationId = requestAnimationFrame(gameLoop);
+            if (!gameActive) return;
+            
+            // 싱글플레이 시 화면 완전 정지 및 로직 중단
+            if (isPaused && !isMultiplayer) return; 
+            
+            const deltaTime = time - lastTime; lastTime = time;
+            update(deltaTime, time); draw();
+        }
+    </script>
+</body>
+</html>
